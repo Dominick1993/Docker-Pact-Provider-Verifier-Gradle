@@ -1,0 +1,87 @@
+plugins {
+    id 'java'
+    id 'au.com.dius.pact' version '3.6.1'
+}
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+    compile("au.com.dius:pact-jvm-provider-gradle_2.12:3.6.1")
+}
+
+// Provider related variables
+def providerName = System.getenv('PROVIDER_NAME')
+def providerProtocol = System.getenv('PROVIDER_PROTOCOL')
+def providerHost = System.getenv('PROVIDER_HOST')
+def providerPort = System.getenv('PROVIDER_PORT')
+
+// Pact related variables
+def useLocalPacts = System.getenv('USE_LOCAL_PACTS')
+def localPactsLocation = System.getenv('PACTS_LOCATION')
+def pactBrokerUrl = System.getenv('PACT_BROKER_URL')
+def pactBrokerUsername = System.getenv('PACT_BROKER_USERNAME')
+def pactBrokerPassword = System.getenv('PACT_BROKER_PASSWORD')
+
+pact {
+    serviceProviders {
+        "$providerName" {
+            protocol = providerProtocol
+            host = providerHost
+            port = providerPort
+
+            if (useLocalPacts) {
+                println("Using locally stored PACT files")
+                hasPactsWith('any-consumer') {
+                    pactFileLocation = file(localPactsLocation)
+                }
+            } else if (pactBrokerUsername && pactBrokerPassword && pactBrokerUrl?.trim()) {
+                println("Accessing PACT Broker with basic auth")
+                hasPactsFromPactBroker(pactBrokerUrl, authentication: ['Basic', pactBrokerUsername, pactBrokerPassword])
+            } else if (pactBrokerUrl?.trim()) {
+                println("Accessing PACT Broker without credentials")
+                hasPactsFromPactBroker(pactBrokerUrl)
+            } else {
+                println("You did not enable local pacts storage, nor provided the PACT Broker URL")
+            }
+        }
+    }
+}
+
+task resolveDependencies {
+    doLast {
+        project.rootProject.allprojects.each { subProject ->
+            subProject.buildscript.configurations.each { configuration ->
+                resolveConfiguration(configuration)
+            }
+            subProject.configurations.each { configuration ->
+                resolveConfiguration(configuration)
+            }
+        }
+    }
+}
+
+void resolveConfiguration(configuration) {
+    if (isResolvableConfiguration(configuration)) {
+        configuration.resolve()
+    }
+}
+
+boolean isResolvableConfiguration(configuration) {
+    def nonResolvableConfigurations = ['apiElements', 'implementation',
+                                        'runtimeElements', 'runtimeOnly',
+                                        'testImplementation', 'testRuntimeOnly',
+                                        'generatedImplementation', 'generatedRuntimeOnly']
+
+    if (nonResolvableConfigurations.contains(configuration.getName())) {
+        return false
+    }
+    return true
+}
