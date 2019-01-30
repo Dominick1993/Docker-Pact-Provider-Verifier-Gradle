@@ -24,7 +24,8 @@ def providerHost = System.getenv('PROVIDER_HOST')
 def providerPort = System.getenv('PROVIDER_PORT')
 
 // Pact related variables
-def useLocalPacts = System.getenv('USE_LOCAL_PACTS')
+def useLocalPacts = System.getenv('USE_LOCAL_PACTS') ?: 'false'
+useLocalPacts = useLocalPacts.toBoolean()
 def localPactsLocation = System.getenv('PACTS_LOCATION')
 def pactBrokerUrl = System.getenv('PACT_BROKER_URL')
 def pactBrokerUsername = System.getenv('PACT_BROKER_USERNAME')
